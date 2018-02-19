@@ -44,7 +44,8 @@ def run(*args, **kwargs):
     solution = SolutionSet.read(kwargs['input'], kwargs['population'])
     before = datetime.datetime.now()
     try:
-        solution.run(kwargs['threshold'], kwargs['epochs'], kwargs['retain'], kwargs['select'], kwargs['mutate'])
+        params = {k: v for k, v in kwargs.items() if k in ('threshold', 'epochs', 'retain', 'select', 'mutate') and v}
+        solution.run(**params)
     except KeyboardInterrupt:
         logger.info('Interrupted')
     finally:

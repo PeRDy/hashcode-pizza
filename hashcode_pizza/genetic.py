@@ -177,7 +177,7 @@ class Population:
 
         return sorted(parents, key=lambda x: x.fitness, reverse=True)
 
-    def run(self, threshold: float = 0.9, epochs: int = 100, retain: float = 0.2, random_select: float = 0.05,
+    def run(self, threshold: float = 0.9, epochs: int = 100, retain: float = 0.2, select: float = 0.05,
             mutate: float = 0.01, *args, **kwargs):
         """
         Run the evolution to find a solution. The evolution will stop when a individual achieves a fitness value above
@@ -186,23 +186,23 @@ class Population:
         :param threshold: Threshold to stop evolution.
         :param epochs: Maximum number of epochs.
         :param retain: Evolution retaining rate.
-        :param random_select: Evolution randomly selection rate.
+        :param select: Evolution randomly selection rate.
         :param mutate: Evolution mutation rate.
         """
         parameters = {
             'Maximum number of epochs': f'{epochs}',
-            'Threshold to stop evolution': f'{threshold * 100:.0f}%',
-            'Retain': f'{retain * 100:.0f}%',
-            'Select': f'{random_select * 100:.0f}%',
-            'Mutate': f'{mutate * 100:.0f}%',
+            'Threshold to stop evolution': f'{threshold * 100:.2f}%',
+            'Retain': f'{retain * 100:.2f}%',
+            'Select': f'{select * 100:.2f}%',
+            'Mutate': f'{mutate * 100:.2f}%',
         }
         msg = 'Genetic Algorithm parameters:\n'
-        msg += '\n'.join([f'{name:>27}: {value:>5}' for name, value in parameters.items()])
+        msg += '\n'.join([f'{name:>27}: {value:>6}' for name, value in parameters.items()])
         logger.info(msg)
         e = 0
         epochs_to_print = range(0, epochs, epochs // 10)
         while threshold > self.best.fitness and e < epochs:
-            self.individuals = self.evolve(retain, random_select, mutate)
+            self.individuals = self.evolve(retain, select, mutate)
             if e in epochs_to_print:
                 logger.info('Epoch %d, %r', e, self.best)
             e += 1
