@@ -1,5 +1,4 @@
 import logging
-import multiprocessing
 from abc import ABCMeta, abstractmethod
 from random import randint, random
 from typing import List
@@ -7,49 +6,42 @@ from typing import List
 logger = logging.getLogger(__name__)
 
 
-class MutateProcess(multiprocessing.Process):
-    def __init__(self, tasks, results):
-        super(MutateProcess, self).__init__()
-        self.tasks = tasks
-        self.results = results
+class BaseSolutionSetMixin:
+    @classmethod
+    @abstractmethod
+    def read(cls, file_path, *args, **kwargs):
+        """
+        Read problem instance from file.
 
-    def run(self):
-        done = False
-        while not done:
-            task = self.tasks.get()
-            if task is None:
-                self.tasks.task_done()
-                done = True
-            else:
-                individual = task
-                individual.mutate()
-                self.results.put(individual)
+        :param file_path: File path.
+        :return: SolutionSet instance.
+        """
+        pass
 
+    @abstractmethod
+    def write(self, file_path, *args, **kwargs):
+        """
+        Write solution instance to file.
 
-class BreedProcess(multiprocessing.Process):
-    def __init__(self, tasks, results):
-        super(BreedProcess, self).__init__()
-        self.tasks = tasks
-        self.results = results
+        :param file_path: File path.
+        """
+        pass
 
-    def run(self):
-        done = False
-        while not done:
-            task = self.tasks.get()
-            if task is None:
-                self.tasks.task_done()
-                done = True
-            else:
-                father, mother = task
-                individual = father.breed(mother)
-                self.results.put(individual)
+    @abstractmethod
+    def run(self, *args, **kwargs):
+        """
+        Run the algorithm to generate a solution.
+        """
+        pass
 
 
 class Individual(metaclass=ABCMeta):
+    @property
     @abstractmethod
     def fitness(self) -> float:
         """
         Calculate the fitness. How good is this individual.
+
         :return: Fitness.
         """
         return None
@@ -65,56 +57,15 @@ class Individual(metaclass=ABCMeta):
     def breed(self, mother: 'Individual') -> 'Individual':
         """
         Crossover of two individual to get a new one.
+
         :param mother: The second individual.
         :return: New individual
         """
         return None
 
 
-class Population:
+class Population(BaseSolutionSetMixin):
     individuals = []
-
-    def mutate_multiprocessing(self, rate, parents):
-        """
-        Mutate some individuals from this population.
-
-        :param rate: Mutation rate.
-        :param parents: Parents to mutate.
-        :return: Parents mutated.
-        """
-        tasks = multiprocessing.JoinableQueue()
-        results = multiprocessing.JoinableQueue()
-
-        processes = [MutateProcess(tasks, results) for _ in range(multiprocessing.cpu_count())]
-
-        for w in processes:
-            w.start()
-
-        not_mutated = []
-        for individual in parents:
-            if rate > random():
-                tasks.put(individual)
-            else:
-                not_mutated.append(individual)
-
-        for _ in range(multiprocessing.cpu_count()):
-            tasks.put(None)
-
-        tasks.join()
-
-        num_mutated = len(parents) - len(not_mutated)
-        mutated = []
-        for _ in range(num_mutated):
-            mutated.append(results.get())
-            results.task_done()
-
-        for p in processes:
-            p.join()
-
-        tasks.close()
-        results.close()
-
-        return not_mutated + mutated
 
     def mutate(self, rate, parents):
         """
@@ -178,7 +129,7 @@ class Population:
         return sorted(parents, key=lambda x: x.fitness, reverse=True)
 
     def run(self, threshold: float = 0.9, epochs: int = 100, retain: float = 0.2, select: float = 0.05,
-            mutate: float = 0.01, *args, **kwargs):
+            mutate: float = 0.01):
         """
         Run the evolution to find a solution. The evolution will stop when a individual achieves a fitness value above
         a threshold or when a number of epochs concludes.
@@ -213,12 +164,3 @@ class Population:
         Best individual.
         """
         return self.individuals[0]
-
-    @classmethod
-    @abstractmethod
-    def read(cls, file_path, population: int):
-        pass
-
-    @abstractmethod
-    def write(self, file_path):
-        pass

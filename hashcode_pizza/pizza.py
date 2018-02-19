@@ -182,7 +182,7 @@ class Solution(Individual):
 
 class SolutionSet(Population):
     @classmethod
-    def read(cls, file_path, population: int):
+    def read(cls, file_path, population: int, *args, **kwargs):
         with open(file_path) as f:
             rows, cols, min_ingredients, max_cells = [int(i) for i in f.readline().split()]
             pizza_data = np.array([list(i.strip()) for i in f.readlines()])
@@ -190,7 +190,7 @@ class SolutionSet(Population):
         pizza = Pizza(rows, cols, min_ingredients, max_cells, pizza_data)
         return cls(pizza, population)
 
-    def write(self, file_path):
+    def write(self, file_path, *args, **kwargs):
         with open(file_path, 'w') as f:
             f.write(str(self.best))
 
