@@ -156,6 +156,7 @@ class Solution(Individual):
     def mutate(self):
         new_slice = Slice.random(self.pizza)
         self.slices = [s for s in self.slices if not new_slice.overlaps(s)] + [new_slice]
+        return self
 
     def breed(self, mother: 'Solution') -> 'Solution':
         father_slices = [s for s in self.slices if s.right < self.pizza.cols // 2]

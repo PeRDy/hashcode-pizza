@@ -1,11 +1,31 @@
 import logging
+import multiprocessing
 from abc import ABCMeta, abstractmethod
+from itertools import takewhile, zip_longest
+from multiprocessing.pool import Pool
 from random import randint, random
 from typing import List
 
-import gc
-
 logger = logging.getLogger(__name__)
+
+_solution = None
+
+
+def grouper(iterable, n):
+    """
+    Collect data into fixed-length chunks or blocks.
+
+    :param iterable: Iterable to be grouped.
+    :param n: Chunks length. If None, the iterable itself will be returned.
+    :return: Iterable of chunks.
+    """
+    if n is None:
+        result = (iter(iterable),)
+    else:
+        args = [iter(iterable)] * n
+        result = (tuple(takewhile(lambda x: x is not None, i)) for i in zip_longest(*args))
+
+    return result
 
 
 class BaseSolutionSetMixin:
@@ -37,13 +57,54 @@ class BaseSolutionSetMixin:
         pass
 
 
+class MutateProcessOld(multiprocessing.Process):
+    def __init__(self, tasks, results):
+        super().__init__()
+        self.tasks = tasks
+        self.results = results
+
+    def run(self):
+        done = False
+        while not done:
+            task = self.tasks.get()
+            if task is None:
+                self.tasks.task_done()
+                done = True
+            else:
+                individual = task
+                individual.mutate()
+                self.results.put(individual)
+
+
+def mutate_process(individuals):
+    return [individual.mutate() for individual in individuals]
+
+
+class BreedProcess(multiprocessing.Process):
+    def __init__(self, tasks, results):
+        super(BreedProcess, self).__init__()
+        self.tasks = tasks
+        self.results = results
+
+    def run(self):
+        done = False
+        while not done:
+            task = self.tasks.get()
+            if task is None:
+                self.tasks.task_done()
+                done = True
+            else:
+                father, mother = task
+                individual = father.breed(mother)
+                self.results.put(individual)
+
+
 class Individual(metaclass=ABCMeta):
     @property
     @abstractmethod
     def fitness(self) -> float:
         """
         Calculate the fitness. How good is this individual.
-
         :return: Fitness.
         """
         return None
@@ -52,8 +113,6 @@ class Individual(metaclass=ABCMeta):
     def mutate(self):
         """
         Mutate individual modifying partially the current state.
-
-        :return: Mutated individual.
         """
         return None
 
@@ -61,14 +120,13 @@ class Individual(metaclass=ABCMeta):
     def breed(self, mother: 'Individual') -> 'Individual':
         """
         Crossover of two individual to get a new one.
-
         :param mother: The second individual.
         :return: New individual
         """
         return None
 
 
-class Population(BaseSolutionSetMixin):
+class Population:
     individuals = []
 
     def mutate(self, rate, parents):
@@ -79,7 +137,13 @@ class Population(BaseSolutionSetMixin):
         :param parents: Parents to mutate.
         :return: Parents mutated.
         """
-        return [individual.mutate() if rate > random() else individual for individual in parents]
+        _solution = self
+
+        with Pool() as pool:
+            mutations_groups = pool.map(mutate_process, grouper(parents, (len(parents)//4)+1))
+            mutations = [m for g in mutations_groups for m in g]
+
+        return mutations
 
     def breed(self, parents):
         """
@@ -90,7 +154,7 @@ class Population(BaseSolutionSetMixin):
         """
         parents_length = len(parents)
         children = []
-        for i in range(len(self.individuals) - len(parents)):
+        while parents_length + len(children) < len(self.individuals):
             father = randint(0, parents_length - 1)
             mother = randint(0, parents_length - 1)
             while mother == father:
@@ -148,7 +212,6 @@ class Population(BaseSolutionSetMixin):
         parameters = {
             'Maximum number of epochs': f'{epochs}',
             'Threshold to stop evolution': f'{threshold * 100:.2f}%',
-            'Population': f'{len(self.individuals)}',
             'Retain': f'{retain * 100:.2f}%',
             'Select': f'{select * 100:.2f}%',
             'Mutate': f'{mutate * 100:.2f}%',
@@ -162,7 +225,6 @@ class Population(BaseSolutionSetMixin):
             self.individuals = self.evolve(retain, select, mutate)
             if e in epochs_to_print:
                 logger.info('Epoch %d, %r', e, self.best)
-                gc.collect()
             e += 1
 
     @property
