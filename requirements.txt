@@ -1,2 +1,5 @@
 clinner
 numpy
+deap
+jupyter
+matplotlib

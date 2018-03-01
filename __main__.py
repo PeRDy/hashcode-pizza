@@ -7,7 +7,7 @@ import sys
 from clinner.command import command
 from clinner.run import Main as ClinnerMain
 
-from hashcode_pizza.pizza import SolutionSet
+from pizza import Solver
 
 logger = logging.getLogger('cli')
 
@@ -29,30 +29,34 @@ class Range(argparse.Action):
 
 @command(args=((('input',), {'help': 'Input file'}),
                (('output',), {'help': 'Output file'}),
-               (('-p', '--population'), {'help': 'Population size', 'default': 100, 'type': int}),
-               (('-e', '--epochs'), {'help': 'Number of epochs to iterate', 'type': int}),
-               (('-t', '--threshold'), {'help': 'Threshold', 'type': float, 'action': Range, 'min': 0, 'max': 1}),
-               (('-r', '--retain'), {'help': 'Probability to retain', 'type': float, 'action': Range, 'min': 0,
-                                     'max': 1}),
-               (('-s', '--select'), {'help': 'Probability to select', 'type': float, 'action': Range, 'min': 0,
-                                     'max': 1}),
-               (('-m', '--mutate'), {'help': 'Probability to mutate', 'type': float, 'action': Range, 'min': 0,
-                                     'max': 1}),
+               (('-p', '--population'), {'help': 'Population size', 'type': int}),
+               (('-g', '--generations'), {'help': 'Number of generations', 'type': int}),
+               (('--crossover',), {'help': 'Probability to crossover', 'type': float, 'action': Range, 'min': 0, 'max': 1}),
+               (('--mutation',), {'help': 'Probability to mutate', 'type': float, 'action': Range, 'min': 0, 'max': 1}),
+               (('--mu',), {'help': 'Mu value', 'type': int}),
+               (('--lambda',), {'help': 'Lambda value', 'type': int}),
                ),
          parser_opts={'help': 'Run the solver'})
 def run(*args, **kwargs):
-    solution = SolutionSet.read(kwargs['input'], kwargs['population'])
     before = datetime.datetime.now()
     try:
-        params = {k: v for k, v in kwargs.items() if k in ('threshold', 'epochs', 'retain', 'select', 'mutate') and v}
-        solution.run(**params)
+        solver = Solver(
+            input_file=kwargs['input'],
+            generations=kwargs['generations'],
+            population_size=kwargs['population'],
+            cx_probability=kwargs['crossover'],
+            mutation_probability=kwargs['mutation'],
+            mu=kwargs['mu'],
+            lambda_=kwargs['lambda'],
+        )
+        solver.solve()
     except KeyboardInterrupt:
         logger.info('Interrupted')
     finally:
         elapsed_time = (datetime.datetime.now() - before).total_seconds()
         logger.debug('Time: %ss.', elapsed_time)
-        logger.info(repr(solution.best))
-        solution.write(kwargs['output'])
+        # logger.info(repr(solution.best))
+        # solution.write(kwargs['output'])
 
     return 0
 

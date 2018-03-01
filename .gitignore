@@ -29,6 +29,9 @@ var/
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Notebooks
+.ipynb_checkpoints/
+
 # Output
 output/
 logs/

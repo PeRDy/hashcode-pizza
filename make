@@ -73,5 +73,30 @@ def run(*args, **kwargs):
         logger.error(e.stderr.decode())
 
 
+@command(command_type=CommandType.PYTHON,
+         args=((('-n', '--name',), {'help': 'Docker image name', 'default': APP_NAME}),),
+         parser_opts={'help': 'Run Jupyter Notebook'})
+def notebook(*args, **kwargs):
+    try:
+        container = docker_cli.containers.create(
+            image=f'{APP_NAME}:latest',
+            entrypoint='jupyter',
+            command=shlex.split('notebook --ip="*" --no-browser --allow-root') + list(args),
+            name=kwargs['name'],
+            volumes=VOLUMES,
+            auto_remove=True,
+            ports={'8888/tcp': '80'}
+        )
+
+        container.start()
+
+        for line in (i.decode().rstrip() for i in container.logs(stream=True)):
+            print(line)
+    except KeyboardInterrupt:
+        docker_cli.containers.get(kwargs['name']).stop()
+    except ContainerError as e:
+        logger.error(e.stderr.decode())
+
+
 if __name__ == '__main__':
     sys.exit(Main().run())

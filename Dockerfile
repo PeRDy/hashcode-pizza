@@ -10,6 +10,8 @@ ENV PYTHONPATH='$PYTHONPATH:$WORKDIR'
 RUN apk --no-cache add \
         build-base \
         linux-headers \
+        freetype-dev \
+        libpng-dev \
         python3-dev && \
     rm -rf /var/cache/apk/*
 
